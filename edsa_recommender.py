@@ -27,6 +27,8 @@
 """
 # Streamlit dependencies
 import streamlit as st
+import hydralit_components as hc
+
 
 # Data handling dependencies
 import pandas as pd
@@ -36,25 +38,55 @@ import numpy as np
 from utils.data_loader import load_movie_titles
 from recommenders.collaborative_based import collab_model
 from recommenders.content_based import content_model
-
+import time
+import resources.functions.trailers as t 
+import nav_bar.about as a
+import nav_bar.contact as c
+import nav_bar.help as h
 # Data Loading
 title_list = load_movie_titles('resources/data/movies.csv')
+
+#Page Config
+st.set_page_config(page_icon='resources/imgs/DATAFLIX.png', page_title= 'Dataflix', layout='wide', initial_sidebar_state='auto')
+
+over_theme = {'txc_inactive': '#FFFFFF'}
+
+# specify the primary menu definition
+menu_data = [
+    {'icon': "fa fa-users", 'label':'About Us'},
+    {'id':'Contact Us','icon': 'fa fa-envelope', 'label':'Contact Us'},
+    {'id':'Help', 'icon': 'fa fa-question-circle', 'label':'Help'}
+]
+
+over_theme = {'txc_inactive': '#FFFFFF'}
+menu_id = hc.nav_bar(
+    menu_definition=menu_data,
+    override_theme=over_theme,
+    home_name='Home',
+    #login_name='Logout',
+    hide_streamlit_markers=False, #will show the st hamburger as well as the navbar now!
+    sticky_nav=True, #at the top or not
+    sticky_mode='pinned', #jumpy or not-jumpy, but sticky or pinned
+)
+page_selection = f'{menu_id}'
 
 # App declaration
 def main():
 
+    
+
     # DO NOT REMOVE the 'Recommender System' option below, however,
     # you are welcome to add more options to enrich your app.
-    page_options = ["Recommender System","Solution Overview"]
+    #page_options = ["Recommender System","Solution Overview"]
 
     # -------------------------------------------------------------------
     # ----------- !! THIS CODE MUST NOT BE ALTERED !! -------------------
     # -------------------------------------------------------------------
-    page_selection = st.sidebar.selectbox("Choose Option", page_options)
-    if page_selection == "Recommender System":
+    #page_selection = st.sidebar.selectbox("Choose Option", page_options)
+    if page_selection == "Home":
         # Header contents
-        st.write('# Movie Recommender Engine')
-        st.write('### EXPLORE Data Science Academy Unsupervised Predict')
+        st.write('# DATAFLIX')
+        #st.write('### EXPLORE Data Science Academy Unsupervised Predict')
         st.image('resources/imgs/Image_header.png',use_column_width=True)
         # Recommender System algorithm selection
         sys = st.radio("Select an algorithm",
@@ -72,9 +104,10 @@ def main():
         if sys == 'Content Based Filtering':
             if st.button("Recommend"):
                 try:
-                    with st.spinner('Crunching the numbers...'):
-                        top_recommendations = content_model(movie_list=fav_movies,
-                                                            top_n=10)
+                    #Hydralit loaders
+                    with hc.HyLoader('Your TOP 10 recommendations are...',hc.Loaders.standard_loaders,index=[3,0,5]):
+                        top_recommendations = content_model(movie_list=fav_movies,top_n=10)
+                        time.sleep(5)
                     st.title("We think you'll like:")
                     for i,j in enumerate(top_recommendations):
                         st.subheader(str(i+1)+'. '+j)
@@ -86,12 +119,15 @@ def main():
         if sys == 'Collaborative Based Filtering':
             if st.button("Recommend"):
                 try:
-                    with st.spinner('Crunching the numbers...'):
-                        top_recommendations = collab_model(movie_list=fav_movies,
-                                                           top_n=10)
+                    #Hydralit loaders
+                    with hc.HyLoader('Your TOP 10 recommendation are...',hc.Loaders.standard_loaders,index=[3,0,5]):
+                        top_recommendations = collab_model(movie_list=fav_movies,top_n=10)
+                        time.sleep(5)
                     st.title("We think you'll like:")
                     for i,j in enumerate(top_recommendations):
                         st.subheader(str(i+1)+'. '+j)
+                        #get youtube trailer 
+                        t.trailers(top_recommendations[i])
                 except:
                     st.error("Oops! Looks like this algorithm does't work.\
                               We'll need to fix it!")
@@ -100,10 +136,16 @@ def main():
     # -------------------------------------------------------------------
 
     # ------------- SAFE FOR ALTERING/EXTENSION -------------------
-    if page_selection == "Solution Overview":
-        st.title("Solution Overview")
-        st.write("Describe your winning approach on this page")
-
+    elif page_selection == 'About Us':
+        # navigate to the About page
+        a.about()
+    elif page_selection == 'Contact Us':
+        # navigate to the Contact Us page
+        c.contact_us()
+    elif page_selection == 'Help':
+        # navigate to the Help page
+        h.help()
+  
     # You may want to add more sections here for aspects such as an EDA,
     # or to provide your business pitch.
 

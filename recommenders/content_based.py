@@ -34,30 +34,24 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 
+# Entity featurization and similarity computation
+from sklearn.metrics.pairwise import linear_kernel,cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+# Imported for our sanity
+import warnings
+warnings.filterwarnings('ignore')
+
+
 # Importing data
 movies = pd.read_csv('resources/data/movies.csv', sep = ',')
 ratings = pd.read_csv('resources/data/ratings.csv')
-movies.dropna(inplace=True)
 
-def data_preprocessing(subset_size):
-    """Prepare data for use within Content filtering algorithm.
+movies_df = movies
+#Drop duplicates 
+movies_df = movies_df.drop(movies_df.loc[movies_df["title"].duplicated(keep='first') == True].index)
 
-    Parameters
-    ----------
-    subset_size : int
-        Number of movies to use within the algorithm.
 
-    Returns
-    -------
-    Pandas Dataframe
-        Subset of movies selected for content-based filtering.
-
-    """
-    # Split genre data into individual words.
-    movies['keyWords'] = movies['genres'].str.replace('|', ' ')
-    # Subset of the data
-    movies_subset = movies[:subset_size]
-    return movies_subset
 
 # !! DO NOT CHANGE THIS FUNCTION SIGNATURE !!
 # You are, however, encouraged to change its content.  
@@ -78,35 +72,44 @@ def content_model(movie_list,top_n=10):
         Titles of the top-n movie recommendations to the user.
 
     """
-    # Initializing the empty list of recommended movies
-    recommended_movies = []
-    data = data_preprocessing(27000)
-    # Instantiating and generating the count matrix
-    count_vec = CountVectorizer()
-    count_matrix = count_vec.fit_transform(data['keyWords'])
-    indices = pd.Series(data['title'])
-    cosine_sim = cosine_similarity(count_matrix, count_matrix)
-    # Getting the index of the movie that matches the title
-    idx_1 = indices[indices == movie_list[0]].index[0]
-    idx_2 = indices[indices == movie_list[1]].index[0]
-    idx_3 = indices[indices == movie_list[2]].index[0]
-    # Creating a Series with the similarity scores in descending order
-    rank_1 = cosine_sim[idx_1]
-    rank_2 = cosine_sim[idx_2]
-    rank_3 = cosine_sim[idx_3]
-    # Calculating the scores
-    score_series_1 = pd.Series(rank_1).sort_values(ascending = False)
-    score_series_2 = pd.Series(rank_2).sort_values(ascending = False)
-    score_series_3 = pd.Series(rank_3).sort_values(ascending = False)
-    # Getting the indexes of the 10 most similar movies
-    listings = score_series_1.append(score_series_1).append(score_series_3).sort_values(ascending = False)
+   # Create a subset
+    df=movies_df[:27000]
+    
+    # Data Preprocessing
+    df['genres'] = df['genres'].str.replace('|', ' ')
+    
+    # Create a tfidf matrix and getting similarity indices
+    tf = TfidfVectorizer(analyzer='word',ngram_range=(1, 2),min_df=0, stop_words='english')
+    tfidf_matrix = tf.fit_transform(df['genres'])
+    tfidf_matrix.shape
+    cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+    df = df.reset_index()
+    df=df.drop('index', axis=1)
+    titles = df['title']
+    indices = pd.Series(df.index, index=df['title'])
 
-    # Store movie names
-    recommended_movies = []
-    # Appending the names of movies
-    top_50_indexes = list(listings.iloc[1:50].index)
-    # Removing chosen movies
-    top_indexes = np.setdiff1d(top_50_indexes,[idx_1,idx_2,idx_3])
-    for i in top_indexes[:top_n]:
-        recommended_movies.append(list(movies['title'])[i])
+    #Movie 1
+    idx_1 = indices[movie_list[0]]
+    scores_1 = list(enumerate(cosine_sim[idx_1]))
+    scores_1 = sorted(scores_1, key=lambda x: x[1], reverse=True)
+   
+
+    #Do the same for movie 2
+    idx_2 = indices[movie_list[1]]
+    scores_2 = list(enumerate(cosine_sim[idx_2]))
+    scores_2 = sorted(scores_2, key=lambda x: x[1], reverse=True)
+    
+
+    #Do the same for movie 3
+    idx_3 = indices[movie_list[2]]
+    scores_3 = list(enumerate(cosine_sim[idx_3]))
+    scores_3 = sorted(scores_3, key=lambda x: x[1], reverse=True)
+    
+    
+    mix= scores_3 + scores_2 + scores_1
+    mix=sorted(mix,key=lambda x: x[1],reverse=True)
+    movie_indices = [i[0] for i in mix]
+    recommended_movies=(titles.iloc[movie_indices])
+    recommended_movies= [ elem for elem in recommended_movies if elem not in movie_list]
+    recommended_movies= recommended_movies[0:top_n]
     return recommended_movies
